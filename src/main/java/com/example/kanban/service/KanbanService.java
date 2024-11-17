@@ -1,6 +1,7 @@
 package com.example.kanban.service;
 
 import com.example.kanban.model.Kanban;
+import com.example.kanban.model.Prioridade;
 import com.example.kanban.model.Status;
 import com.example.kanban.repository.KanbanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,12 +10,14 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class KanbanService {
-teste commit
     private KanbanRepository kanbanRepository;
 
     @Autowired
@@ -30,6 +33,16 @@ teste commit
         return kanbanRepository.save(kanban);
     }
 
+    public Kanban moverKanban(int id) {
+        Kanban kanban = selecionarKanbanPorId(id);
+        if (kanban.getStatus() == Status.TODO) {
+            kanban.setStatus(Status.IN_PROGRESS);
+        } else if (kanban.getStatus() == Status.IN_PROGRESS) {
+            kanban.setStatus(Status.DONE);
+        }
+        return kanbanRepository.save(kanban);
+    }
+
     public List<Kanban> listarKanbans() {
         return kanbanRepository.findAll();
     }
@@ -39,20 +52,40 @@ teste commit
         return kanbanOpt.orElseThrow(() -> new RuntimeException("Kanban não encontrado."));
     }
 
-    public Kanban moverKanban(int id) {
-        Kanban kanban = selecionarKanbanPorId(id);
-        Status statusAtual = kanban.getStatus();
-        switch (statusAtual) {
-            case TODO:
-                kanban.setStatus(Status.IN_PROGRESS);
-                break;
-            case IN_PROGRESS:
-                kanban.setStatus(Status.DONE);
-                break;
-            case DONE:
-                throw new RuntimeException("A tarefa já está concluída.");
-        }
-        return kanbanRepository.save(kanban);
+    public Map<Status, List<Kanban>> listarKanbansPorColuna() {
+        List<Kanban> kanbans = kanbanRepository.findAll();
+        return kanbans.stream()
+                .sorted(Comparator.comparing(Kanban::getPrioridade))
+                .collect(Collectors.groupingBy(Kanban::getStatus));
+    }
+
+    public List<Kanban> filtrarKanbansPorPrioridade(Prioridade prioridade) {
+        return kanbanRepository.findAll().stream()
+                .filter(kanban -> kanban.getPrioridade() == prioridade)
+                .collect(Collectors.toList());
+    }
+
+    public List<Kanban> filtrarKanbansPorDataLimite() {
+        return kanbanRepository.findAll().stream()
+                .filter(kanban -> LocalDate.parse(kanban.getDataLimite(), DateTimeFormatter.ofPattern("dd/MM/yyyy")).isBefore(LocalDate.now()))
+                .collect(Collectors.toList());
+    }
+
+    public Map<Status, List<Kanban>> gerarRelatorio() {
+        List<Kanban> kanbans = kanbanRepository.findAll();
+        Map<Status, List<Kanban>> kanbansPorColuna = kanbans.stream()
+                .sorted(Comparator.comparing(Kanban::getPrioridade))
+                .collect(Collectors.groupingBy(Kanban::getStatus));
+
+        kanbansPorColuna.forEach((status, listaKanbans) -> {
+            listaKanbans.forEach(kanban -> {
+                if (!kanban.getStatus().equals(Status.DONE) && LocalDate.parse(kanban.getDataLimite(), DateTimeFormatter.ofPattern("dd/MM/yyyy")).isBefore(LocalDate.now())) {
+                    kanban.setDescricao(kanban.getDescricao() + " (Atrasada)");
+                }
+            });
+        });
+
+        return kanbansPorColuna;
     }
 
     public void deletarKanban(int id) {

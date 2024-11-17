@@ -1,11 +1,14 @@
 package com.example.kanban.controller;
 
 import com.example.kanban.model.Kanban;
+import com.example.kanban.model.Prioridade;
+import com.example.kanban.model.Status;
 import com.example.kanban.service.KanbanService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/kanban")
@@ -26,6 +29,11 @@ public class KanbanController {
     @GetMapping
     public List<Kanban> listarKanbans() {
         return kanbanService.listarKanbans();
+    }
+
+    @GetMapping("/status")
+    public Map<Status, List<Kanban>> listarKanbansPorColuna() {
+        return kanbanService.listarKanbansPorColuna();
     }
 
     @GetMapping("/{id}")
@@ -65,5 +73,20 @@ public class KanbanController {
         }
 
         return kanbanService.criarKanban(kanbanExistente);
+    }
+
+    @GetMapping("/prioridade/{prioridade}")
+    public List<Kanban> filtrarKanbansPorPrioridade(@PathVariable Prioridade prioridade) {
+        return kanbanService.filtrarKanbansPorPrioridade(prioridade);
+    }
+
+    @GetMapping("/data-limite")
+    public List<Kanban> filtrarKanbansPorDataLimite() {
+        return kanbanService.filtrarKanbansPorDataLimite();
+    }
+
+    @GetMapping("/relatorio")
+    public Map<Status, List<Kanban>> gerarRelatorio() {
+        return kanbanService.gerarRelatorio();
     }
 }
